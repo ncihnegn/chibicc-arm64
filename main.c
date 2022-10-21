@@ -23,6 +23,7 @@ struct Token {
   Token *next;    // Next token
   int val;        // If kind is TK_NUM, its value
   char *str;      // Token string
+  int len;        // Token length
 };
 
 // Program input
@@ -55,17 +56,19 @@ void error_at(char *loc, char *fmt, ...) {
 }
 
 // Consumes the current token if it matches `op`.
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
+bool consume(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
     return false;
   token = token->next;
   return true;
 }
 
-// Ensure that the current token if it matches `op`.
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op)
-    error_at(token->str, "expected '%c'", op);
+// Ensure the current token if it matches `op`.
+void expect(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    error_at(token->str, "expected \"%s\"", op);
   token = token->next;
 }
 
@@ -81,13 +84,16 @@ int expect_number() {
 bool at_eof() { return token->kind == TK_EOF; }
 
 // Create a new token and add it as the next token of `cur`.
-Token *new_token(TokenKind kind, Token *cur, char *str) {
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   cur->next = tok;
   return tok;
 }
+
+bool startswith(char *p, char *q) { return memcmp(p, q, strlen(q)) == 0; }
 
 // Tokenize `user_input` and returns new tokens.
 Token *tokenize() {
@@ -103,23 +109,33 @@ Token *tokenize() {
       continue;
     }
 
-    // Punctuator
-    if (strchr("+-*/()", *p)) {
-      cur = new_token(TK_RESERVED, cur, p++);
+    // Multi-character punctuator
+    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
+        startswith(p, ">=")) {
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
+      continue;
+    }
+
+    // Single-character punctuator
+    if (strchr("+-*/()<>", *p)) {
+      cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
 
     // Integer literal
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p);
+      cur = new_token(TK_NUM, cur, p, 0);
+      char *q = p;
       cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
     error_at(p, "invalid token");
   }
 
-  new_token(TK_EOF, cur, p);
+  new_token(TK_EOF, cur, p, 0);
   return head.next;
 }
 
@@ -132,6 +148,10 @@ typedef enum {
   ND_SUB, // -
   ND_MUL, // *
   ND_DIV, // /
+  ND_EQ,  // ==
+  ND_NE,  // !=
+  ND_LT,  // <
+  ND_LE,  // <=
   ND_NUM, // Integer
 } NodeKind;
 
@@ -164,18 +184,56 @@ Node *new_num(int val) {
 }
 
 Node *expr();
+Node *eq();
+Node *cmp();
+Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
 
-// expr = mul ("+" mul | "-" mul)*
-Node *expr() {
+// expr = eq
+Node *expr() { return eq(); }
+
+// eq = cmp ("==" cmp | "!=" cmp)*
+Node *eq() {
+  Node *node = cmp();
+
+  while (true) {
+    if (consume("=="))
+      node = new_binary(ND_EQ, node, cmp());
+    else if (consume("!="))
+      node = new_binary(ND_NE, node, cmp());
+    else
+      return node;
+  }
+}
+
+// cmp = add ("<" add | "<=" add | ">" add | ">=" add)*
+Node *cmp() {
+  Node *node = add();
+
+  while (true) {
+    if (consume("<"))
+      node = new_binary(ND_LT, node, add());
+    else if (consume("<="))
+      node = new_binary(ND_LE, node, add());
+    if (consume(">"))
+      node = new_binary(ND_LT, add(), node);
+    else if (consume(">="))
+      node = new_binary(ND_LE, add(), node);
+    else
+      return node;
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+Node *add() {
   Node *node = mul();
 
   while (true) {
-    if (consume('+'))
+    if (consume("+"))
       node = new_binary(ND_ADD, node, mul());
-    else if (consume('-'))
+    else if (consume("-"))
       node = new_binary(ND_SUB, node, mul());
     else
       return node;
@@ -187,9 +245,9 @@ Node *mul() {
   Node *node = unary();
 
   while (true) {
-    if (consume('*'))
+    if (consume("*"))
       node = new_binary(ND_MUL, node, unary());
-    else if (consume('/'))
+    else if (consume("/"))
       node = new_binary(ND_DIV, node, unary());
     else
       return node;
@@ -199,18 +257,18 @@ Node *mul() {
 // unary = ("+" | "-")? unary
 //       | primary
 Node *unary() {
-  if (consume('+'))
+  if (consume("+"))
     return unary();
-  if (consume('-'))
+  if (consume("-"))
     return new_binary(ND_SUB, new_num(0), unary());
   return primary();
 }
 
 // primary = "(" expr ")" | num
 Node *primary() {
-  if (consume('(')) {
+  if (consume("(")) {
     Node *node = expr();
-    expect(')');
+    expect(")");
     return node;
   }
 
@@ -247,6 +305,26 @@ void gen(Node *node) {
     break;
   case ND_DIV:
     printf("\tudiv w0, w0, w1\n");
+    break;
+  case ND_EQ:
+    printf("\tsubs\tw0, w0, w1\n");
+    printf("\tcset\tw0, eq\n");
+    printf("\tand w0, w0, #0x1\n");
+    break;
+  case ND_NE:
+    printf("\tsubs\tw0, w0, w1\n");
+    printf("\tcset\tw0, ne\n");
+    printf("\tand w0, w0, #0x1\n");
+    break;
+  case ND_LT:
+    printf("\tsubs\tw0, w0, w1\n");
+    printf("\tcset\tw0, lt\n");
+    printf("\tand w0, w0, #0x1\n");
+    break;
+  case ND_LE:
+    printf("\tsubs\tw0, w0, w1\n");
+    printf("\tcset\tw0, le\n");
+    printf("\tand w0, w0, #0x1\n");
     break;
   default:
     error("unexpected node kind: %d", node->kind);
