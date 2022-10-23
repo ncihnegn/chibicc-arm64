@@ -21,13 +21,30 @@ struct Token {
   char *str;      // Token string
 };
 
+// Program input
+char *user_input;
+
 // Current token
 Token *token;
 
-// Report an error and exit
+// Report an error and exit.
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+// Reports an error location and exit.
+void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s", pos, ""); // print `pos` leading spaces.
+  fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
@@ -44,14 +61,14 @@ bool consume(char op) {
 // Ensure that the current token if it matches `op`.
 void expect(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op)
-    error("expected '%c'", op);
+    error_at(token->str, "expected '%c'", op);
   token = token->next;
 }
 
 // Ensure the current token is TK_NUM.
 int expect_number() {
   if (token->kind != TK_NUM)
-    error("expected a number");
+    error_at(token->str, "expected a number");
   int val = token->val;
   token = token->next;
   return val;
@@ -68,12 +85,13 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
   return tok;
 }
 
-// Tokenize `p` and returns new tokens.
-Token *tokenize(char *p) {
+// Tokenize `user_iput` and returns new tokens.
+Token *tokenize() {
   Token head;
   head.next = NULL;
   Token *cur = &head;
 
+  char *p = user_input;
   while (*p) {
     // Skip whitespace characters.
     if (isspace(*p)) {
@@ -94,7 +112,7 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    error("invalid token");
+    error_at(p, "invalid token");
   }
 
   new_token(TK_EOF, cur, p);
@@ -112,7 +130,8 @@ int main(int argc, char **argv) {
   printf("\t.p2align 2\n");
   printf("_main:\n");
 
-  token = tokenize(argv[1]);
+  user_input = argv[1];
+  token = tokenize();
 
   // The first token must be a number
   printf("\tmov\tw0, #%d\n", expect_number());
