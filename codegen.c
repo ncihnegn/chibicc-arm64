@@ -7,8 +7,12 @@ void gen(Node *node) {
     // ARM64 standard ABI requires 16-byte alignment
     printf("\tstr w0, [sp, #-16]!\n");
     return;
+  case ND_STMT:
+    gen(node->lhs);
+    return;
   case ND_RT:
     gen(node->lhs);
+    printf("\tldr w0, [sp], #16\n");
     return;
   default:;
   }
@@ -67,8 +71,6 @@ void codegen(Node *node) {
 
   for (Node *n = node; n; n = n->next) {
     gen(n);
-    // A result must be at the top of the stack, so pop it to return.
-    printf("\tldr w0, [sp], #16\n");
   }
 
   printf("\tret\n");

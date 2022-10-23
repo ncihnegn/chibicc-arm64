@@ -54,7 +54,7 @@ Node *stmt() {
   if (consume("return"))
     node = new_unary(ND_RT, expr());
   else
-    node = expr();
+    node = new_unary(ND_STMT, expr());
   expect(";");
   return node;
 }
