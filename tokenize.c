@@ -29,13 +29,22 @@ void error_at(char *loc, char *fmt, ...) {
   exit(1);
 }
 
-// Consumes the current token if it matches `op`.
+// Consume the current token if it matches `op`.
 bool consume(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       strncmp(token->str, op, token->len))
     return false;
   token = token->next;
   return true;
+}
+
+// Consume the current token if it is an identifier.
+Token *consume_id() {
+  if (token->kind != TK_ID)
+    return NULL;
+  Token *t = token;
+  token = token->next;
+  return t;
 }
 
 // Ensure the current token if it matches `op`.
@@ -99,8 +108,14 @@ Token *tokenize() {
     }
 
     // Single-character punctuator
-    if (strchr("+-*/()<>;", *p)) {
+    if (strchr("+-*/()<>;=", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    // Identifier
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_ID, cur, p++, 1);
       continue;
     }
 

@@ -1,5 +1,30 @@
 #include "chibicc.h"
 
+// Push the given node's address to the stack.
+void gen_addr(Node *node) {
+  if (node->kind != ND_LVAR)
+    error("not an lvalue");
+
+  int offset = (node->name - 'a' + 1) * 8;
+  printf("\tsub x0, x29, #%d\n", offset);
+  printf("\tstr x0, [sp, #-16]!\n");
+  return;
+}
+
+void load() {
+  printf("\tldr x0, [sp], #16\n");
+  printf("\tldr x0, [x0]\n");
+  printf("\tstr x0, [sp, #-16]!\n");
+}
+
+void store() {
+  printf("\tldr x1, [sp], #16\n");
+  printf("\tldr x0, [sp], #0\n");
+  printf("\tstr x1, [x0]\n");
+  printf("\tstr x1, [sp, #-16]!\n");
+}
+
+// Generate code for a given node.
 void gen(Node *node) {
   switch (node->kind) {
   case ND_NUM:
@@ -10,9 +35,19 @@ void gen(Node *node) {
   case ND_STMT:
     gen(node->lhs);
     return;
+  case ND_LVAR:
+    gen_addr(node);
+    load();
+    return;
+  case ND_ASSIGN:
+    gen_addr(node->lhs);
+    gen(node->rhs);
+    store();
+    return;
   case ND_RT:
     gen(node->lhs);
     printf("\tldr w0, [sp], #16\n");
+    printf("\tb\tLreturn\n");
     return;
   default:;
   }
@@ -69,9 +104,19 @@ void codegen(Node *node) {
   printf("\t.p2align 2\n");
   printf("_main:\n");
 
+  // Prologue
+  printf("\tstr x29, [sp, #-16]!\n"); // Save frame pointer register
+  printf("\tmov x29, sp\n");
+  printf("\tsub sp, sp, 8*26\n"); // Reserve for a-z
+
   for (Node *n = node; n; n = n->next) {
     gen(n);
   }
+
+  // Epilogue
+  printf("Lreturn:\n");
+  printf("\tmov sp, x29\n");
+  printf("\tstr x29, [sp], #16\n");
 
   printf("\tret\n");
 }

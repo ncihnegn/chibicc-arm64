@@ -46,7 +46,11 @@ assert 1 '1>=0;'
 assert 1 '1>=1;'
 assert 0 '1>=2;'
 
-assert 3 'return 1; 2; 3;'
-assert 3 '1; return 2; 3;'
+assert 1 'return 1; 2; 3;'
+assert 2 '1; return 2; 3;'
 assert 3 '1; 2; return 3;'
+
+assert 3 'a=3; return a;'
+assert 8 'a=3; z=5; return a+z;'
+
 echo OK
