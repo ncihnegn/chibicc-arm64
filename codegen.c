@@ -1,11 +1,16 @@
 #include "chibicc.h"
 
 void gen(Node *node) {
-  if (node->kind == ND_NUM) {
+  switch (node->kind) {
+  case ND_NUM:
     printf("\tmov w0, #%d\n", node->val);
     // ARM64 standard ABI requires 16-byte alignment
     printf("\tstr w0, [sp, #-16]!\n");
     return;
+  case ND_RT:
+    gen(node->lhs);
+    return;
+  default:;
   }
 
   gen(node->lhs);

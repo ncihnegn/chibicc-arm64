@@ -83,6 +83,13 @@ Token *tokenize() {
       continue;
     }
 
+    // Keyword
+    if (startswith(p, "return") && !isalnum(p[6])) {
+      cur = new_token(TK_RESERVED, cur, p, 6);
+      p += 6;
+      continue;
+    }
+
     // Multi-character punctuator
     if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
         startswith(p, ">=")) {

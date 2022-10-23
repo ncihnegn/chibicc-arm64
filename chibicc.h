@@ -51,6 +51,7 @@ typedef enum {
   ND_NE,  // !=
   ND_LT,  // <
   ND_LE,  // <=
+  ND_RT,  // return
   ND_NUM, // Integer
 } NodeKind;
 
