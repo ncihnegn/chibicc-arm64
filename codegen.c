@@ -63,6 +63,16 @@ void gen(Node *node) {
       printf("Lend%d:\n", labelseq);
     }
     return;
+  case ND_WHILE:
+    labelseq++;
+    printf("\tLbegin%d:\n", labelseq);
+    gen(node->cond);
+    printf("\tldr w0, [sp], #16\n");
+    printf("\tcbz w0, Lend%d\n", labelseq);
+    gen(node->then);
+    printf("\tb\tLbegin%d\n", labelseq);
+    printf("Lend%d:\n", labelseq);
+    return;
   case ND_RT:
     gen(node->lhs);
     printf("\tldr w0, [sp], #16\n");

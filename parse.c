@@ -80,17 +80,22 @@ Program *program() {
 }
 
 // stmt = "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
 //      | "return" expr ";"
 //      | expr ";"
 Node *stmt() {
-  Node *node;
+  Node *node = NULL;
   if (consume("if")) {
     node = new_node(ND_IF);
+  } else if (consume("while")) {
+    node = new_node(ND_WHILE);
+  }
+  if (node) {
     expect("(");
     node->cond = expr();
     expect(")");
     node->then = stmt();
-    if (consume("else"))
+    if (node->kind == ND_IF && consume("else"))
       node->els = stmt();
   } else {
     if (consume("return"))
