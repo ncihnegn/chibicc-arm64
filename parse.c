@@ -84,6 +84,7 @@ Node *read_expr_stmt() { return new_unary(ND_STMT, expr()); }
 // stmt = "if" "(" expr ")" stmt ("else" stmt)?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";"  expr? ")" stmt
+//      | "{" stmt* "}"
 //      | "return" expr ";"
 //      | expr ";"
 Node *stmt() {
@@ -117,6 +118,16 @@ Node *stmt() {
     node->then = stmt();
     if (node->kind == ND_IF && consume("else"))
       node->els = stmt();
+  } else if (consume("{")) {
+    node = new_node(ND_BLOCK);
+    Node head;
+    head.next = NULL;
+    Node *cur = &head;
+    while (!consume("}")) {
+      cur->next = stmt();
+      cur = cur->next;
+    }
+    node->body = head.next;
   } else {
     if (consume("return"))
       node = new_unary(ND_RT, expr());

@@ -6,6 +6,9 @@ static char *kw[] = {"return", "if", "else", "while", "for"};
 // Multi-character punctuator
 static char *ops[] = {"==", "!=", "<=", ">="};
 
+// Single-character punctuator
+static char *marks = "+-*/()<>;={}";
+
 // Program input
 char *user_input;
 
@@ -120,7 +123,7 @@ Token *tokenize() {
     }
 
     // Single-character punctuator
-    if (strchr("+-*/()<>;=", *p)) {
+    if (strchr(marks, *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }

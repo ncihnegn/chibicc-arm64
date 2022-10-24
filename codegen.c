@@ -89,6 +89,10 @@ void gen(Node *node) {
     printf("\tb\tLbegin%d\n", labelseq);
     printf("Lend%d:\n", labelseq);
     return;
+  case ND_BLOCK:
+    for (Node *n = node->body; n; n = n->next)
+      gen(n);
+    return;
   case ND_RT:
     gen(node->lhs);
     printf("\tldr w0, [sp], #16\n");
