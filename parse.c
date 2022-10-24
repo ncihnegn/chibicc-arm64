@@ -79,8 +79,11 @@ Program *program() {
   return prog;
 }
 
+Node *read_expr_stmt() { return new_unary(ND_STMT, expr()); }
+
 // stmt = "if" "(" expr ")" stmt ("else" stmt)?
 //      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";"  expr? ")" stmt
 //      | "return" expr ";"
 //      | expr ";"
 Node *stmt() {
@@ -89,11 +92,28 @@ Node *stmt() {
     node = new_node(ND_IF);
   } else if (consume("while")) {
     node = new_node(ND_WHILE);
+  } else if (consume("for")) {
+    node = new_node(ND_FOR);
   }
   if (node) {
     expect("(");
-    node->cond = expr();
-    expect(")");
+    if (node->kind == ND_FOR) {
+      if (!consume(";")) {
+        node->init = read_expr_stmt();
+        expect(";");
+      }
+      if (!consume(";")) {
+        node->cond = expr();
+        expect(";");
+      }
+      if (!consume(")")) {
+        node->inc = read_expr_stmt();
+        expect(")");
+      }
+    } else {
+      node->cond = expr();
+      expect(")");
+    }
     node->then = stmt();
     if (node->kind == ND_IF && consume("else"))
       node->els = stmt();
@@ -101,7 +121,7 @@ Node *stmt() {
     if (consume("return"))
       node = new_unary(ND_RT, expr());
     else
-      node = new_unary(ND_STMT, expr());
+      node = read_expr_stmt();
     expect(";");
   }
   return node;

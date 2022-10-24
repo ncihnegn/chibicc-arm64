@@ -1,7 +1,7 @@
 #include "chibicc.h"
 
 // Keyword
-static char *kw[] = {"return", "if", "else", "while"};
+static char *kw[] = {"return", "if", "else", "while", "for"};
 
 // Multi-character punctuator
 static char *ops[] = {"==", "!=", "<=", ">="};

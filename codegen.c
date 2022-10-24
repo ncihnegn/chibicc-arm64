@@ -27,6 +27,8 @@ void store() {
 
 // Generate code for a given node.
 void gen(Node *node) {
+  if (!node)
+    return;
   switch (node->kind) {
   case ND_NUM:
     printf("\tmov w0, #%d\n", node->val);
@@ -65,11 +67,25 @@ void gen(Node *node) {
     return;
   case ND_WHILE:
     labelseq++;
-    printf("\tLbegin%d:\n", labelseq);
+    printf("Lbegin%d:\n", labelseq);
     gen(node->cond);
     printf("\tldr w0, [sp], #16\n");
     printf("\tcbz w0, Lend%d\n", labelseq);
     gen(node->then);
+    printf("\tb\tLbegin%d\n", labelseq);
+    printf("Lend%d:\n", labelseq);
+    return;
+  case ND_FOR:
+    labelseq++;
+    gen(node->init);
+    printf("Lbegin%d:\n", labelseq);
+    if (node->cond) {
+      gen(node->cond);
+      printf("\tldr w0, [sp], #16\n");
+      printf("\tcbz w0, Lend%d\n", labelseq);
+    }
+    gen(node->then);
+    gen(node->inc);
     printf("\tb\tLbegin%d\n", labelseq);
     printf("Lend%d:\n", labelseq);
     return;
