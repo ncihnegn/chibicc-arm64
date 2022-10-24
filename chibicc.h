@@ -44,6 +44,15 @@ Token *tokenize();
 // Parser
 //
 
+// Local variable
+typedef struct Var Var;
+struct Var {
+  Var *next;
+  char *name;
+  int offset; // Offset from frame pointer
+};
+
+// AST node
 typedef enum {
   ND_ADD,    // +
   ND_SUB,    // -
@@ -56,7 +65,7 @@ typedef enum {
   ND_ASSIGN, // =
   ND_RT,     // return
   ND_STMT,   // Expression statement
-  ND_LVAR,   // Local variable
+  ND_VAR,    // Variable
   ND_NUM,    // Integer
 } NodeKind;
 
@@ -67,14 +76,20 @@ struct Node {
   Node *lhs;     // Left-hand side
   Node *rhs;     // Right-hand side
   int val;       // Used if kind == ND_NUM
-  char name;     // Used if kind == ND_LVAR
+  Var *var;      // Used if kind == ND_VAR
   Node *next;    // Next node
 };
 
-Node *program();
+typedef struct Program {
+  Node *node;
+  Var *locals;
+  int stack_size;
+} Program;
+
+Program *program();
 
 //
 // Code generator
 //
 
-void codegen(Node *node);
+void codegen(Program *prog);

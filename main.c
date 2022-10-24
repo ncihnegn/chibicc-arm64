@@ -8,8 +8,18 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
-  Node *node = program();
+  Program *prog = program();
+
+  // Assign offsets to local variables.
+  int offset = 0;
+  for (Var *var = prog->locals; var; var = var->next) {
+    offset += 8;
+    var->offset = offset;
+  }
+  int bytes = offset / 8;
+  // ARM64 standard ABI requires 16-byte alignment
+  prog->stack_size = (bytes / 2 + bytes & 0x1) * 16;
   // Traverse the AST to emit assembly.
-  codegen(node);
+  codegen(prog);
   return 0;
 }

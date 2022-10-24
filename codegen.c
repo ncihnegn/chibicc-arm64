@@ -2,11 +2,10 @@
 
 // Push the given node's address to the stack.
 void gen_addr(Node *node) {
-  if (node->kind != ND_LVAR)
+  if (node->kind != ND_VAR)
     error("not an lvalue");
 
-  int offset = (node->name - 'a' + 1) * 8;
-  printf("\tsub x0, x29, #%d\n", offset);
+  printf("\tsub x0, x29, #%d\n", node->var->offset);
   printf("\tstr x0, [sp, #-16]!\n");
   return;
 }
@@ -29,13 +28,12 @@ void gen(Node *node) {
   switch (node->kind) {
   case ND_NUM:
     printf("\tmov w0, #%d\n", node->val);
-    // ARM64 standard ABI requires 16-byte alignment
     printf("\tstr w0, [sp, #-16]!\n");
     return;
   case ND_STMT:
     gen(node->lhs);
     return;
-  case ND_LVAR:
+  case ND_VAR:
     gen_addr(node);
     load();
     return;
@@ -98,7 +96,7 @@ void gen(Node *node) {
   printf("\tstr w0, [sp, #-16]!\n");
 }
 
-void codegen(Node *node) {
+void codegen(Program *prog) {
   // Assembly header
   printf("\t.global _main\n");
   printf("\t.p2align 2\n");
@@ -107,9 +105,9 @@ void codegen(Node *node) {
   // Prologue
   printf("\tstr x29, [sp, #-16]!\n"); // Save frame pointer register
   printf("\tmov x29, sp\n");
-  printf("\tsub sp, sp, 8*26\n"); // Reserve for a-z
+  printf("\tsub sp, sp, #%d\n", prog->stack_size); // Reserve
 
-  for (Node *n = node; n; n = n->next) {
+  for (Node *n = prog->node; n; n = n->next) {
     gen(n);
   }
 

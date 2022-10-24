@@ -1,4 +1,4 @@
-CFLAGS=-std=c11 -g -static -Wall
+CFLAGS=-std=c2x -g -static -Wall
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
