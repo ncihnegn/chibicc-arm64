@@ -63,7 +63,8 @@ typedef enum {
   ND_LT,     // <
   ND_LE,     // <=
   ND_ASSIGN, // =
-  ND_RT,     // return
+  ND_RT,     // "return"
+  ND_IF,     // "if"
   ND_STMT,   // Expression statement
   ND_VAR,    // Variable
   ND_NUM,    // Integer
@@ -78,6 +79,11 @@ struct Node {
   int val;       // Used if kind == ND_NUM
   Var *var;      // Used if kind == ND_VAR
   Node *next;    // Next node
+
+  // "if" statement
+  Node *cond;
+  Node *then;
+  Node *els;
 };
 
 typedef struct Program {

@@ -1,5 +1,11 @@
 #include "chibicc.h"
 
+// Keyword
+static char *kw[] = {"return", "if", "else"};
+
+// Multi-character punctuator
+static char *ops[] = {"==", "!=", "<=", ">="};
+
 // Program input
 char *user_input;
 
@@ -78,6 +84,18 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 
 bool startswith(char *p, char *q) { return strncmp(p, q, strlen(q)) == 0; }
 
+char *starts_with_reserved(char *p) {
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
+    if (startswith(p, kw[i]) && !isalnum(p[strlen(kw[i])]))
+      return kw[i];
+
+  for (int i = 0; i < sizeof(ops) / sizeof(*ops); i++)
+    if (startswith(p, ops[i]))
+      return ops[i];
+
+  return NULL;
+}
+
 // Tokenize `user_input` and returns new tokens.
 Token *tokenize() {
   Token head;
@@ -92,18 +110,12 @@ Token *tokenize() {
       continue;
     }
 
-    // Keyword
-    if (startswith(p, "return") && !isalnum(p[6])) {
-      cur = new_token(TK_RESERVED, cur, p, 6);
-      p += 6;
-      continue;
-    }
-
-    // Multi-character punctuator
-    if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
-        startswith(p, ">=")) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
-      p += 2;
+    // Reserved
+    char *kw = starts_with_reserved(p);
+    if (kw) {
+      int len = strlen(kw);
+      cur = new_token(TK_RESERVED, cur, p, len);
+      p += len;
       continue;
     }
 

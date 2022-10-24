@@ -1,5 +1,7 @@
 #include "chibicc.h"
 
+int labelseq = 0;
+
 // Push the given node's address to the stack.
 void gen_addr(Node *node) {
   if (node->kind != ND_VAR)
@@ -41,6 +43,25 @@ void gen(Node *node) {
     gen_addr(node->lhs);
     gen(node->rhs);
     store();
+    return;
+  case ND_IF:
+    labelseq++;
+    if (node->els) {
+      gen(node->cond);
+      printf("\tldr w0, [sp], #16\n");
+      printf("\tcbz w0, Lelse%d\n", labelseq);
+      gen(node->then);
+      printf("\tb\tLend%d:\n", labelseq);
+      printf("Lelse%d:\n", labelseq);
+      gen(node->els);
+      printf("Lend%d:\n", labelseq);
+    } else {
+      gen(node->cond);
+      printf("\tldr w0, [sp], #16\n");
+      printf("\tcbz w0, Lend%d\n", labelseq);
+      gen(node->then);
+      printf("Lend%d:\n", labelseq);
+    }
     return;
   case ND_RT:
     gen(node->lhs);

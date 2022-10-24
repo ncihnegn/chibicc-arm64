@@ -79,15 +79,26 @@ Program *program() {
   return prog;
 }
 
-// stmt = "return" expr ";"
+// stmt = "if" "(" expr ")" stmt ("else" stmt)?
+//      | "return" expr ";"
 //      | expr ";"
 Node *stmt() {
   Node *node;
-  if (consume("return"))
-    node = new_unary(ND_RT, expr());
-  else
-    node = new_unary(ND_STMT, expr());
-  expect(";");
+  if (consume("if")) {
+    node = new_node(ND_IF);
+    expect("(");
+    node->cond = expr();
+    expect(")");
+    node->then = stmt();
+    if (consume("else"))
+      node->els = stmt();
+  } else {
+    if (consume("return"))
+      node = new_unary(ND_RT, expr());
+    else
+      node = new_unary(ND_STMT, expr());
+    expect(";");
+  }
   return node;
 }
 
