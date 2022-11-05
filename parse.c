@@ -220,6 +220,7 @@ Node *unary() {
 }
 
 // primary = "(" expr ")" | id | num
+// args = "(" ")"
 Node *primary() {
   if (consume("(")) {
     Node *node = expr();
@@ -229,6 +230,12 @@ Node *primary() {
 
   Token *tok = consume_id();
   if (tok) {
+    if (consume("(")) {
+      expect(")");
+      Node *node = new_node(ND_CALL);
+      node->funcname = strndup(tok->str, tok->len);
+      return node;
+    }
     Var *var = find_var(tok);
     if (!var)
       var = push_var(strndup(tok->str, tok->len));

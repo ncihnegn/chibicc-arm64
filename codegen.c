@@ -93,9 +93,11 @@ void gen(Node *node) {
     for (Node *n = node->body; n; n = n->next)
       gen(n);
     return;
+  case ND_CALL:
+    printf("\tbl\t_%s\n", node->funcname);
+    return;
   case ND_RT:
     gen(node->lhs);
-    printf("\tldr w0, [sp], #16\n");
     printf("\tb\tLreturn\n");
     return;
   default:;
@@ -153,10 +155,11 @@ void codegen(Program *prog) {
   printf("\t.p2align 2\n");
   printf("_main:\n");
 
+  int stack_size = prog->stack_size + 16;
   // Prologue
-  printf("\tstr x29, [sp, #-16]!\n"); // Save frame pointer register
-  printf("\tmov x29, sp\n");
-  printf("\tsub sp, sp, #%d\n", prog->stack_size); // Reserve
+  printf("\tsub\tsp, sp, #%d\n", stack_size); // Reserve
+  printf("\tstp\tx29, x30, [sp, #%d]\n", prog->stack_size);
+  printf("\tadd\tx29, sp, #%d\n", prog->stack_size);
 
   for (Node *n = prog->node; n; n = n->next) {
     gen(n);
@@ -164,8 +167,8 @@ void codegen(Program *prog) {
 
   // Epilogue
   printf("Lreturn:\n");
-  printf("\tmov sp, x29\n");
-  printf("\tstr x29, [sp], #16\n");
-
-  printf("\tret\n");
+  printf("\tsub\tsp, x29, #%d\n", prog->stack_size);
+  printf("\tldp\tx29, x30, [sp, #%d]\n", prog->stack_size);
+  printf("\tadd\tsp, sp, #%d\n", stack_size);
+  printf("\tret\n"); // default to X30
 }

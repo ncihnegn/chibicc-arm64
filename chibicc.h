@@ -68,6 +68,7 @@ typedef enum {
   ND_WHILE,  // "while"
   ND_FOR,    // "for"
   ND_BLOCK,  // { ... }
+  ND_CALL,   // Function call
   ND_STMT,   // Expression statement
   ND_VAR,    // Variable
   ND_NUM,    // Integer
@@ -77,11 +78,12 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeKind kind; // Node kind
-  Node *lhs;     // Left-hand side
-  Node *rhs;     // Right-hand side
   int val;       // Used if kind == ND_NUM
   Var *var;      // Used if kind == ND_VAR
-  Node *next;    // Next node
+  char *funcname;
+  Node *lhs;  // Left-hand side
+  Node *rhs;  // Right-hand side
+  Node *next; // Next node
 
   // conditional statement
   Node *cond;
@@ -90,8 +92,8 @@ struct Node {
   // "for" statement
   Node *init;
   Node *inc;
-  // Block
-  Node *body;
+
+  Node *body; // Block
 };
 
 typedef struct Program {
