@@ -7,7 +7,7 @@ static char *kw[] = {"return", "if", "else", "while", "for"};
 static char *ops[] = {"==", "!=", "<=", ">="};
 
 // Single-character punctuator
-static char *marks = "+-*/()<>;={}";
+static char *marks = "+-*/()<>;={},";
 
 // Program input
 char *user_input;

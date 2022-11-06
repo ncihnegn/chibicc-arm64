@@ -81,6 +81,8 @@ struct Node {
   int val;       // Used if kind == ND_NUM
   Var *var;      // Used if kind == ND_VAR
   char *funcname;
+  Node *args;
+
   Node *lhs;  // Left-hand side
   Node *rhs;  // Right-hand side
   Node *next; // Next node

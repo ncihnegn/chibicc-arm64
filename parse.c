@@ -219,8 +219,7 @@ Node *unary() {
   return primary();
 }
 
-// primary = "(" expr ")" | id | num
-// args = "(" ")"
+// primary = "(" expr ")" | id func-args? | num
 Node *primary() {
   if (consume("(")) {
     Node *node = expr();
@@ -231,9 +230,9 @@ Node *primary() {
   Token *tok = consume_id();
   if (tok) {
     if (consume("(")) {
-      expect(")");
       Node *node = new_node(ND_CALL);
       node->funcname = strndup(tok->str, tok->len);
+      node->args = func_args();
       return node;
     }
     Var *var = find_var(tok);
@@ -243,4 +242,18 @@ Node *primary() {
   }
 
   return new_num(expect_number());
+}
+
+// func-args = "(" (assign ("," assign)*)? ")"
+Node *func_args() {
+  if (consume(")"))
+    return NULL;
+  Node *head = assign();
+  Node *cur = head;
+  while (consume(",")) {
+    cur->next = assign();
+    cur = cur->next;
+  }
+  expect(")");
+  return head;
 }

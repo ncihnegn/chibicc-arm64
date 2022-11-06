@@ -93,9 +93,19 @@ void gen(Node *node) {
     for (Node *n = node->body; n; n = n->next)
       gen(n);
     return;
-  case ND_CALL:
+  case ND_CALL: {
+    char *argreg[] = {"w0", "w1", "w2", "w3", "w4", "w5"};
+    int nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      gen(arg);
+      nargs++;
+    }
+    for (int i = 0; i < nargs; i++)
+      printf("\tldr\t%s, [sp, #%d]\n", argreg[i], 16 * (nargs - 1 - i));
+    printf("\tadd\tsp, sp, #%d\n", 16 * nargs);
     printf("\tbl\t_%s\n", node->funcname);
     return;
+  }
   case ND_RT:
     gen(node->lhs);
     printf("\tb\tLreturn\n");
