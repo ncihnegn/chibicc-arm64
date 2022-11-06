@@ -1,6 +1,7 @@
 #include "chibicc.h"
 
 int labelseq = 0;
+char *funcname;
 
 // Push the given node's address to the stack.
 void gen_addr(Node *node) {
@@ -108,7 +109,7 @@ void gen(Node *node) {
   }
   case ND_RT:
     gen(node->lhs);
-    printf("\tb\tLreturn\n");
+    printf("\tb\tLreturn_%s\n", funcname);
     return;
   default:;
   }
@@ -159,26 +160,29 @@ void gen(Node *node) {
   printf("\tstr w0, [sp, #-16]!\n");
 }
 
-void codegen(Program *prog) {
-  // Assembly header
-  printf("\t.global _main\n");
-  printf("\t.p2align 2\n");
-  printf("_main:\n");
+void codegen(Function *prog) {
+  for (Function *fn = prog; fn; fn = fn->next) {
+    funcname = fn->name;
+    // Function header
+    printf("\t.global _%s\n", funcname);
+    printf("\t.p2align 2\n");
+    printf("_%s:\n", funcname);
 
-  int stack_size = prog->stack_size + 16;
-  // Prologue
-  printf("\tsub\tsp, sp, #%d\n", stack_size); // Reserve
-  printf("\tstp\tx29, x30, [sp, #%d]\n", prog->stack_size);
-  printf("\tadd\tx29, sp, #%d\n", prog->stack_size);
+    int stack_size = fn->stack_size + 16;
+    // Prologue
+    printf("\tsub\tsp, sp, #%d\n", stack_size); // Reserve
+    printf("\tstp\tx29, x30, [sp, #%d]\n", fn->stack_size);
+    printf("\tadd\tx29, sp, #%d\n", fn->stack_size);
 
-  for (Node *n = prog->node; n; n = n->next) {
-    gen(n);
+    // Emit code
+    for (Node *n = fn->node; n; n = n->next)
+      gen(n);
+
+    // Epilogue
+    printf("Lreturn_%s:\n", funcname);
+    printf("\tsub\tsp, x29, #%d\n", fn->stack_size);
+    printf("\tldp\tx29, x30, [sp, #%d]\n", fn->stack_size);
+    printf("\tadd\tsp, sp, #%d\n", stack_size);
+    printf("\tret\n"); // default to X30
   }
-
-  // Epilogue
-  printf("Lreturn:\n");
-  printf("\tsub\tsp, x29, #%d\n", prog->stack_size);
-  printf("\tldp\tx29, x30, [sp, #%d]\n", prog->stack_size);
-  printf("\tadd\tsp, sp, #%d\n", stack_size);
-  printf("\tret\n"); // default to X30
 }

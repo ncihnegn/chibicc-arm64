@@ -73,6 +73,15 @@ int expect_number() {
   return val;
 }
 
+// Ensure that the current token is TK_ID.
+char *expect_id() {
+  if (token->kind != TK_ID)
+    error_at(token->str, "expected an identifier");
+  char *s = strndup(token->str, token->len);
+  token = token->next;
+  return s;
+}
+
 bool at_eof() { return token->kind == TK_EOF; }
 
 // Create a new token and add it as the next token of `cur`.

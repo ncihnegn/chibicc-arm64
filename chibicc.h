@@ -36,6 +36,7 @@ bool consume(char *op);
 Token *consume_id();
 void expect(char *op);
 int expect_number();
+char *expect_id();
 bool at_eof();
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 Token *tokenize();
@@ -98,16 +99,19 @@ struct Node {
   Node *body; // Block
 };
 
-typedef struct Program {
+typedef struct Function Function;
+struct Function {
+  Function *next;
+  char *name;
   Node *node;
   Var *locals;
   int stack_size;
-} Program;
+};
 
-Program *program();
+Function *program();
 
 //
 // Code generator
 //
 
-void codegen(Program *prog);
+void codegen(Function *prog);
