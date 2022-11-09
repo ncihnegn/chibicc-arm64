@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+//
+// Tokenizer
+//
+
 // Token kind
 typedef enum {
   TK_RESERVED, // Keywords or punctuators
@@ -36,7 +40,7 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
-// Reports an error location and exit.
+// Report an error location and exit.
 void error_at(char *loc, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -85,7 +89,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
   return tok;
 }
 
-// Tokenize `user_iput` and returns new tokens.
+// Tokenize `user_input` and returns new tokens.
 Token *tokenize() {
   Token head;
   head.next = NULL;
@@ -100,7 +104,7 @@ Token *tokenize() {
     }
 
     // Punctuator
-    if (*p == '+' || *p == '-') {
+    if (strchr("+-*/()", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -119,6 +123,138 @@ Token *tokenize() {
   return head.next;
 }
 
+//
+// Parser
+//
+
+typedef enum {
+  ND_ADD, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_NUM, // Integer
+} NodeKind;
+
+// AST node type
+typedef struct Node Node;
+struct Node {
+  NodeKind kind; // Node kind
+  Node *lhs;     // Left-hand side
+  Node *rhs;     // Right-hand side
+  int val;       // Used if kind == ND_NUM
+};
+
+Node *new_node(NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  return node;
+}
+
+Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+Node *new_num(int val) {
+  Node *node = new_node(ND_NUM);
+  node->val = val;
+  return node;
+}
+
+Node *expr();
+Node *mul();
+Node *unary();
+Node *primary();
+
+// expr = mul ("+" mul | "-" mul)*
+Node *expr() {
+  Node *node = mul();
+
+  while (true) {
+    if (consume('+'))
+      node = new_binary(ND_ADD, node, mul());
+    else if (consume('-'))
+      node = new_binary(ND_SUB, node, mul());
+    else
+      return node;
+  }
+}
+
+// mul = unary ("*" unary | "/" unary)*
+Node *mul() {
+  Node *node = unary();
+
+  while (true) {
+    if (consume('*'))
+      node = new_binary(ND_MUL, node, unary());
+    else if (consume('/'))
+      node = new_binary(ND_DIV, node, unary());
+    else
+      return node;
+  }
+}
+
+// unary = ("+" | "-")? unary
+//       | primary
+Node *unary() {
+  if (consume('+'))
+    return unary();
+  if (consume('-'))
+    return new_binary(ND_SUB, new_num(0), unary());
+  return primary();
+}
+
+// primary = "(" expr ")" | num
+Node *primary() {
+  if (consume('(')) {
+    Node *node = expr();
+    expect(')');
+    return node;
+  }
+
+  return new_num(expect_number());
+}
+
+//
+// Code generator
+//
+
+void gen(Node *node) {
+  if (node->kind == ND_NUM) {
+    printf("\tmov w0, #%d\n", node->val);
+    // ARM64 standard ABI requires 16-byte alignment
+    printf("\tstr w0, [sp, #-16]!\n");
+    return;
+  }
+
+  gen(node->lhs);
+  gen(node->rhs);
+
+  printf("\tldr w1, [sp], #16\n");
+  printf("\tldr w0, [sp], #16\n");
+
+  switch (node->kind) {
+  case ND_ADD:
+    printf("\tadd w0, w0, w1\n");
+    break;
+  case ND_SUB:
+    printf("\tsub w0, w0, w1\n");
+    break;
+  case ND_MUL:
+    printf("\tmul w0, w0, w1\n");
+    break;
+  case ND_DIV:
+    printf("\tudiv w0, w0, w1\n");
+    break;
+  default:
+    error("unexpected node kind: %d", node->kind);
+  }
+
+  printf("\tstr w0, [sp, #-16]!\n");
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     error("%s: invalid number of arguments", argv[0]);
@@ -132,20 +268,10 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
-
-  // The first token must be a number
-  printf("\tmov\tw0, #%d\n", expect_number());
-
-  // ... followed by either `+ <number>` or `- <number>`.
-  while (!at_eof()) {
-    if (consume('+')) {
-      printf("\tadd\tw0, w0, #%d\n", expect_number());
-      continue;
-    }
-
-    expect('-');
-    printf("\tsub\tw0, w0, #%d\n", expect_number());
-  }
+  Node *node = expr();
+  // Traverse the AST to emit assembly.
+  gen(node);
+  printf("\tldr w0, [sp], #16\n");
   printf("\tret\n");
   return 0;
 }
